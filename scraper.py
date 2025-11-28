@@ -23,7 +23,7 @@ def requisicao(url, headers=headers):
 
 def atrasarRequisicao(url='', min_ = 0.5, max_ = 2):
   delay = random.uniform(min_, max_)
-  print(f"Aguardando {delay:.2f}s antes da próxima requisição {{{url}}}\n")
+  print(f"Aguardando {delay:.2f}s antes da próxima requisição {{{url}}}")
   time.sleep(delay)
   return delay
 
@@ -49,16 +49,18 @@ if resposta.status_code == OK:
     filmes_count = item.find('span', class_='light').get_text().strip('()')
     try:
       filmes_count = int(filmes_count)
-      if filmes_count >= 400:
+      if filmes_count >= filmes_count:
         generos.append((genero_nome, filmes_count, a_ic['href']))
-        print(f"Gênero: {genero_nome}, {filmes_count} filmes")
+        mensagem = f"Gênero: {genero_nome}, {filmes_count} filme{'s' if filmes_count != 1 else ''}"
+        print(mensagem)
     except ValueError:
       continue
 else:
   print(f"Falha ao acessar a página: {resposta.status_code}")
 
-generos_escolhidos = ['Aventura', 'Ação']
 NOME = 0
+# generos_escolhidos = ['Aventura', 'Ação']
+generos_escolhidos = [genero[NOME] for genero in generos]
 generos_selecionados = [genero for genero in generos if genero[NOME] in generos_escolhidos]
 print(f"\nGêneros selecionados:\n{generos_selecionados}\n")
 
@@ -84,39 +86,52 @@ def get_filmes_li(resposta):
   filmes_soup = b_soup.find('div', class_='gd-col-middle')
   return filmes_soup.find_all('li', class_='mdl')
 
-def adicionar_filmes(filmes_soup, lista_filmes, tamanho_minimo_sinopse = 175, maximo_generos_em_comum = 1):
+def adicionar_filmes(filmes_soup, lista_filmes, tamanho_minimo_sinopse = 1, maximo_generos_em_comum = len(generos_escolhidos)):
   NOME = 0
+  num_filmes_invalidos = 0
   for filme in filmes_soup:
-      titulo = filme.find('a', class_='meta-title-link').get_text(strip=True)
-      info = filme.find('div', class_='meta-body-item meta-body-info')
-      generos_filme = info.find_all('span', class_='dark-grey-link')
-      generos_filme = get_somente_generos_escolhidos(generos_filme, generos_escolhidos)
-      if len(generos_filme) > maximo_generos_em_comum:
-        continue
-      sinopse = filme.find('div', class_='content-txt').get_text(strip=True)
-      if len(sinopse) < tamanho_minimo_sinopse:
-        continue
-      if (not esta_adicionado(titulo, sinopse, lista_filmes)):
-        lista_filmes.append((titulo, sinopse, genero[NOME]))
-
+    titulo = filme.find('a', class_='meta-title-link').get_text(strip=True)
+    info = filme.find('div', class_='meta-body-item meta-body-info')
+    generos_filme = info.find_all('span', class_='dark-grey-link')
+    generos_filme = get_somente_generos_escolhidos(generos_filme, generos_escolhidos)
+    if len(generos_filme) > maximo_generos_em_comum:
+      continue
+    sinopse = filme.find('div', class_='content-txt')
+    if sinopse == None:
+      num_filmes_invalidos += 1
+      continue
+    sinopse = sinopse.get_text(strip=True)
+    if len(sinopse) < tamanho_minimo_sinopse:
+      continue
+    if (not esta_adicionado(titulo, sinopse, lista_filmes)):
+      lista_filmes.append((titulo, sinopse, generos_filme))
+  return num_filmes_invalidos
+  
 filmes = []
 
 OK = 200
 URL = 2
-MINIMO_FILMES_GENERO = 200
-TAMANHOS_MINIMO_SINOPSE = [180, 100]
-NUMERO_MAXIMO_GENEROS_EM_COMUM = 1
+QUANTIDADE = 1
+NOME = 0
+# MINIMO_FILMES_GENERO = 200
+MINIMO_FILMES_GENERO = [genero[QUANTIDADE] for genero in generos]
+#TAMANHOS_MINIMO_SINOPSE = [180, 100]
+TAMANHOS_MINIMO_SINOPSE = [1] * len(generos_selecionados)
+#NUMERO_MAXIMO_GENEROS_EM_COMUM = 1
+NUMERO_MAXIMO_GENEROS_EM_COMUM = len(generos_selecionados)
 
 tempo_em_espera = 0
 
-print("Buscando filmes...")
+print("Buscando filmes...\n")
 
 for ind, genero in enumerate(generos_selecionados):
   filmes_adicionados = []
   pagina = 1
   tamanho_minimo_sinopse = TAMANHOS_MINIMO_SINOPSE[ind]
+  minimo_filmes_genero = MINIMO_FILMES_GENERO[ind]
+  print(f"--- Coletando filmes do gênero: {genero[NOME]} ---")
   
-  while len(filmes_adicionados) < MINIMO_FILMES_GENERO:
+  while len(filmes_adicionados) < minimo_filmes_genero:
     request_url = url_base + genero[URL] + (('?page=' + str(pagina)) if pagina > 1 else '')
     tempo_em_espera += atrasarRequisicao(request_url)
     resposta = requisicao(request_url)
@@ -124,8 +139,12 @@ for ind, genero in enumerate(generos_selecionados):
       print(f"Falha ao acessar a página: {resposta.status_code}")
       break
     filmes_li = get_filmes_li(resposta)
-    adicionar_filmes(filmes_li, filmes_adicionados, tamanho_minimo_sinopse, NUMERO_MAXIMO_GENEROS_EM_COMUM)
+    minimo_filmes_genero -= adicionar_filmes(filmes_li, filmes_adicionados, tamanho_minimo_sinopse, NUMERO_MAXIMO_GENEROS_EM_COMUM)
     pagina += 1
+  print()
+  if minimo_filmes_genero <= 0:
+    print(f"Nenhum filme do gênero {genero} encontrado!")
+    continue
   filmes.extend(filmes_adicionados[:MINIMO_FILMES_GENERO])
 print(f"Tempo de espera total entre requisições: {tempo_em_espera:.0f}s")
 
