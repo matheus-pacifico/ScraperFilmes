@@ -1,6 +1,6 @@
 # ScraperFilmes 
 
-Esse projeto realiza o web scraping de filmes do site [AdoroCinema](https://www.adorocinema.com/). Os filmes são salvos em um arquivo csv separados por ";". As informações armazenadas são: título, sinopse e gênero.  Apenas um gênero é associado a cada filme.
+Esse projeto realiza o web scraping de filmes do site [AdoroCinema](https://www.adorocinema.com/). Os filmes são salvos em um arquivo csv separados por ";". As informações armazenadas são: título, sinopse e gênero.
 
 ## Instalação
 
